@@ -6,9 +6,14 @@ import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+class StaticService {
+  static FlutterBackgroundService? service;
+}
+
 @pragma('vm:entry-point')
 void onStart(ServiceInstance serviceInstance) async {
   DartPluginRegistrant.ensureInitialized();
+  print("<<<<<<<<<<<<<<<<<<Background service started!");
   // await Firebase.initializeApp(
   //     options: FirebaseOptions(
   //         apiKey: "AIzaSyBuIDbowOMN6lmWrtRzOGJx-Hr2Zdwxs9A",
@@ -27,18 +32,26 @@ void onStart(ServiceInstance serviceInstance) async {
       serviceInstance.stopSelf();
     });
   }
-  Timer.periodic(const Duration(seconds: 10), (timer) async {
-    if (serviceInstance is AndroidServiceInstance) {
-      if (await serviceInstance.isForegroundService()) {
-        serviceInstance.setForegroundNotificationInfo(
-          title: 'Go',
-          content: 'Fetching Driver Location ${DateTime.now()}',
-        );
-        BackgroundLocationService().sendDriverLatLng();
-      }
-    }
-    serviceInstance.invoke('update');
+  // Timer.periodic(const Duration(seconds: 10), (timer) async {
+  if (serviceInstance is AndroidServiceInstance) {
+    // if (await serviceInstance.isForegroundService()) {
+    serviceInstance.setForegroundNotificationInfo(
+      title: 'Go',
+      content: 'Fetching Location ${DateTime.now()}',
+    );
+    BackgroundLocationService().sendDriverLatLng();
+    // }
+  }
+
+  // print(StaticService.serviceInstance == serviceInstance);
+  // serviceInstance.invoke('update');
+
+  Timer(Duration(seconds: 5), () {
+    serviceInstance.stopSelf();
+
+    print("Background service stopped after 5 seconds");
   });
+  // });
 }
 
 @pragma('vm:entry-point')
@@ -50,16 +63,19 @@ Future<bool> onIosBackground(ServiceInstance serviceInstance) async {
 
 class BackgroundLocationService {
   Future<void> initializeBackgroundService() async {
-    final FlutterBackgroundService service = FlutterBackgroundService();
-    await service.configure(
-        iosConfiguration: IosConfiguration(
-          onForeground: onStart,
-        ),
-        androidConfiguration: AndroidConfiguration(
-          onStart: onStart,
-          isForegroundMode: true,
-        ));
-    service.startService();
+    var isRunning = await FlutterBackgroundService().isRunning();
+    if (!isRunning) {
+      final FlutterBackgroundService service = FlutterBackgroundService();
+      await service.configure(
+          iosConfiguration: IosConfiguration(
+            onForeground: onStart,
+          ),
+          androidConfiguration: AndroidConfiguration(
+            onStart: onStart,
+            isForegroundMode: true,
+          ));
+      StaticService.service = service;
+    }
   }
 
   sendDriverLatLng() {
@@ -73,9 +89,11 @@ class BackgroundLocationService {
         "updated_at": DateTime.now()
       };
       try {
-        // Firebasemainhelper().createDocumentWithAutoId('GetloctionData', data);
+        print("<<<<<<<<<<<<<< data >>>>>>>>>>>>>>>");
+
+        /// here i want to call a method which update the data on firebase
       } on Exception catch (e) {
-        print(e.toString());
+        print("Error in fetching location " + e.toString());
       }
     });
   }
@@ -83,7 +101,7 @@ class BackgroundLocationService {
   Future<Position?> getCurrentLocation({bool? showLoader}) async {
     Position? position;
     bool isPermissionGranted = false;
-    isPermissionGranted = await checkLocationPermission();
+    isPermissionGranted = await checkLocationPermissionInForeground();
     if (isPermissionGranted) {
       try {
         position = await Geolocator.getCurrentPosition();
@@ -98,7 +116,7 @@ class BackgroundLocationService {
     return position;
   }
 
-  Future<bool> checkLocationPermission() async {
+  Future<bool> checkLocationPermissionInForeground() async {
     bool returnValue = true;
     LocationPermission permission;
     permission = await Geolocator.checkPermission();
@@ -116,6 +134,33 @@ class BackgroundLocationService {
     }
     return returnValue;
   }
+
+  // Future<bool> checkLocationPermission() async {
+  //   // Step 1: Request foreground location permission first
+  //   PermissionStatus foregroundStatus = await Permission.locationWhenInUse.request();
+  //
+  //   // If foreground permission is denied, return false
+  //   if (foregroundStatus != PermissionStatus.granted) {
+  //     log("Foreground location permission denied.");
+  //     return false;
+  //   }
+  //
+  //   // Step 2: Now request background location permission
+  //   PermissionStatus backgroundStatus = await Permission.locationAlways.request();
+  //
+  //   // Step 3: If background permission is permanently denied, open settings
+  //   if (backgroundStatus == PermissionStatus.permanentlyDenied) {
+  //     log('Background location permission permanently denied. Opening settings...');
+  //     await openAppSettings();
+  //     return false;
+  //   }
+  //
+  //   // Step 4: Return true if either "granted" or "limited" (iOS)
+  //   return backgroundStatus == PermissionStatus.granted || backgroundStatus == PermissionStatus.limited;
+  // }
+
+
+
 
   Future<bool> checkNotificationPermission() async {
     bool returnValue = true;

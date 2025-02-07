@@ -3,6 +3,8 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 
+import 'notificationshow.dart';
+
 // Top-level function for background service
 
 void onStart(ServiceInstance service) async {
@@ -10,7 +12,7 @@ void onStart(ServiceInstance service) async {
 
   Timer.periodic(const Duration(seconds: 20), (timer) async {
     print("::::::::::::::${timer.isActive}");
-    NotificationService().showNotification(
+      NotificationService().showNotification(
       id: 1,
       body: "Background service will call ",
       payload: "now",
