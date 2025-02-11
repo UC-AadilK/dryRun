@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1035192159954",
+    "project_id": "dryrun-b7475",
+    "storage_bucket": "dryrun-b7475.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1035192159954:android:0a1d5a0b0b1355c812270b",
+        "android_client_info": {
+          "package_name": "com.example.dryrun"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAnDD1VEuXgvdusIUuim6VyH7dyIVeIX9w"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
