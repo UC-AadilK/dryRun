@@ -13,10 +13,12 @@ import 'package:flutter_background_service_android/flutter_background_service_an
 import 'package:geolocator/geolocator.dart';
 
 import 'firebase_options.dart';
-import 'notificationshow.dart';
+import 'notification_helper.dart';
+import 'temp/notificationshow.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // await initializeNotificationService();
   final status =
       await BackgroundLocationService().checkLocationPermissionInForeground();
 
@@ -29,7 +31,7 @@ void main() async {
     await Workmanager().initialize(
         callbackDispatcher, // The top level function, aka callbackDispatcher
         isInDebugMode:
-            true // If enabled it will post a notification whenever the task is running. Ha ndy for debugging tasks
+            false // If enabled it will post a notification whenever the task is running. Ha ndy for debugging tasks
         );
     Workmanager().registerPeriodicTask("task-identifier", "simpleTask",
         frequency: Duration(minutes: 5));
@@ -94,9 +96,6 @@ class MyApp extends StatelessWidget {
   }
 }
 
-
-
-
 Future<void> requestAllPermissions() async {
   // 1️⃣ Request "While in Use" Location Permission
   var locationPermission = await Permission.locationWhenInUse.request();
@@ -104,7 +103,8 @@ Future<void> requestAllPermissions() async {
     print("✅ Location (While in Use) Permission Granted");
 
     // 2️⃣ Request "Allow All Time" Location Permission
-    var backgroundLocationPermission = await Permission.locationAlways.request();
+    var backgroundLocationPermission =
+        await Permission.locationAlways.request();
     if (backgroundLocationPermission.isGranted) {
       print("✅ Background Location Permission Granted");
 
@@ -114,7 +114,8 @@ Future<void> requestAllPermissions() async {
         print("✅ Notification Permission Granted");
 
         // 4️⃣ Request to Disable Battery Optimization
-        var batteryOptimization = await Permission.ignoreBatteryOptimizations.request();
+        var batteryOptimization =
+            await Permission.ignoreBatteryOptimizations.request();
         if (batteryOptimization.isGranted) {
           print("✅ Battery Optimization Disabled");
         } else {

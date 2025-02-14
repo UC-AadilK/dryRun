@@ -8,9 +8,12 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import 'notification_helper.dart';
 
 class StaticService {
   static FlutterBackgroundService? service;
@@ -20,6 +23,33 @@ class StaticService {
 void onStart(ServiceInstance serviceInstance) async {
   DartPluginRegistrant.ensureInitialized();
   print("<<<<<<<<<<<<<<<<<<Background service started!");
+
+  // final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+  //     FlutterLocalNotificationsPlugin();
+
+  // Periodically update the notification
+  // var activeTimer = Timer.periodic(const Duration(seconds: 1), (timer) async {
+  //   if (serviceInstance is AndroidServiceInstance) {
+  //     // Check if service is still in foreground
+  //     if (await serviceInstance.isForegroundService()) {
+  //       print("notification is still updating>>>>>>>>>>>>>");
+  //       flutterLocalNotificationsPlugin.show(
+  //         notificationId,
+  //         'COOL SERVICE',
+  //         'Updated Time: ${DateTime.now()}',
+  //         const NotificationDetails(
+  //           android: AndroidNotificationDetails(
+  //             notificationChannelId,
+  //             'MY FOREGROUND SERVICE',
+  //             icon: 'ic_bg_service_small',
+  //             // Ensure this icon exists in res/drawable
+  //             ongoing: true, // Ensures it stays active
+  //           ),
+  //         ),
+  //       );
+  //     }
+  //   }
+  // });
 
   await Firebase.initializeApp(
     options: FirebaseOptions(
@@ -37,6 +67,9 @@ void onStart(ServiceInstance serviceInstance) async {
       serviceInstance.setAsBackgroundService();
     });
     serviceInstance.on('stopService').listen((event) {
+      print("Stop service received!");
+      // activeTimer.cancel();
+      // flutterLocalNotificationsPlugin.cancel(notificationId);
       serviceInstance.stopSelf();
     });
   }
@@ -47,22 +80,16 @@ void onStart(ServiceInstance serviceInstance) async {
       title: 'Go',
       content: 'Fetching Location ${DateTime.now()}',
     );
-    await BackgroundLocationService().sendPartnerLatLng(() {
-      serviceInstance.stopSelf();
+    await BackgroundLocationService().sendPartnerLatLng(() async {
+      // serviceInstance.invoke('stopService');
+      // Cancel the notification
+      // activeTimer.cancel();
+      // await flutterLocalNotificationsPlugin.cancel(notificationId);
+      await serviceInstance.stopSelf();
       print("Background service stopped after!!!!!!!!!!!");
     });
     // }
   }
-
-  // print(StaticService.serviceInstance == serviceInstance);
-  // serviceInstance.invoke('update');
-
-  // Timer(Duration(seconds: 15), () {
-  //   serviceInstance.stopSelf();
-  //
-  //   print("Background service stopped after 30 seconds");
-  // });
-  // });
 }
 
 @pragma('vm:entry-point')
@@ -84,6 +111,10 @@ class BackgroundLocationService {
           androidConfiguration: AndroidConfiguration(
             onStart: onStart,
             isForegroundMode: true,
+            // notificationChannelId: notificationChannelId,
+            // initialNotificationTitle: 'AWESOME SERVICE',
+            // initialNotificationContent: 'Initializing...',
+            // foregroundServiceNotificationId: notificationId,
           ));
       StaticService.service = service;
     }
@@ -92,7 +123,9 @@ class BackgroundLocationService {
   sendPartnerLatLng(Function callback) async {
     print("Location Fetching Method Call!!!!!");
 
-    getCurrentLocation(showLoader: false).then((value) async {
+    await getCurrentLocation().then((value) async {
+      print("Hello World>>>>>>>>>>>>>>>>>>>>$value");
+
       final lat = 0;
       final long = 0;
       // if (value == null) {
@@ -100,8 +133,6 @@ class BackgroundLocationService {
       //   callback();
       //   return;
       // }
-
-      print("Hello World>>>>>>>>>>>>>>>>>>>>");
 
       final serverTime = Timestamp.now();
       String docId = Timestamp.now().toDate().toString();
@@ -120,7 +151,7 @@ class BackgroundLocationService {
           print("Uploading new location data to Firestore...");
           await FirebaseFirestore.instance
               .collection("LOCATION")
-              .doc("user3")
+              .doc("user2")
               .collection("data")
               .doc(docId)
               .set(data)
@@ -209,7 +240,7 @@ class BackgroundLocationService {
         String docId = data['docId'];
         await FirebaseFirestore.instance
             .collection("LOCATION")
-            .doc("user3")
+            .doc("user2")
             .collection("data")
             .doc(docId)
             .set(data);
@@ -226,7 +257,7 @@ class BackgroundLocationService {
     print("All pending data uploaded and cleared.");
   }
 
-  Future<Position?> getCurrentLocation({bool? showLoader}) async {
+  Future<Position?> getCurrentLocation() async {
     Position? position;
     bool isPermissionGranted = false;
     isPermissionGranted = await checkLocationPermissionInForeground();
@@ -237,7 +268,7 @@ class BackgroundLocationService {
             '\nCurrent Longitude -> ${(position.longitude).toString()}'
             '\nCurrent Accuracy -> ${(position.accuracy).toString()}');
       } catch (e) {
-        log(e.toString());
+        log("Error in GetCurrentLocation Method:::::::::::::$e");
         return position;
       }
     }

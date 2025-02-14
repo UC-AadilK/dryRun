@@ -36,6 +36,7 @@
 
 
         </activity>
+
         <service
             android:name="id.flutter.flutter_background_service.BackgroundService"
             android:exported="true"
@@ -48,6 +49,12 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+<!--        <meta-data-->
+<!--            android:name="com.google.firebase.messaging.default_notification_icon"-->
+<!--            android:resource="@mipmap/ic_bg_service_small" />-->
+<!--        <meta-data-->
+<!--            android:name="com.google.firebase.messaging.default_notification_icon"-->
+<!--            android:resource="@drawable/ic_bg_service_small" />-->
         <!--        <service-->
         <!--            android:name="id.flutter.flutter_background_service.BackgroundService"-->
         <!--            android:foregroundServiceType="location"-->
