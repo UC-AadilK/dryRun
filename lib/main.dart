@@ -75,7 +75,7 @@ class MyApp extends StatelessWidget {
             Center(child: Text("Tracking location in background...")),
             ElevatedButton(
                 onPressed: () async {
-                  await ContactSyncService.handleContactsSync("user111111");
+                  // await ContactSyncService.handleContactsSync("user111111");
 
                   // final result = ContactSyncService.filterContacts(
                   //     await ContactSyncService.fetchContacts());
