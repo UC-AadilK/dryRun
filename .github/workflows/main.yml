@@ -113,5 +113,3 @@ jobs:  # Telling what jobs we need to happen
           artifacts: "build/app/outputs/flutter-apk/app-release.apk,build/app/outputs/bundle/release/app-release.aab"
           tag: v${{ env.VERSION }}
           token: ${{ secrets.TOKEN }}
-
-
