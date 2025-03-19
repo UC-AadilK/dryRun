@@ -3,39 +3,34 @@ import 'dart:ui';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dryrun/BeckgroundLocation.dart';
 import 'package:dryrun/bg.dart';
+import 'package:dryrun/contact%20service/contact_service.dart';
 import 'package:dryrun/logger_helper.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:workmanager/workmanager.dart';
-import 'package:flutter_background_service/flutter_background_service.dart';
-import 'package:flutter_background_service_android/flutter_background_service_android.dart';
-import 'package:geolocator/geolocator.dart';
-
 import 'firebase_options.dart';
-import 'notification_helper.dart';
-import 'temp/notificationshow.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // await initializeNotificationService();
   final status =
-      await BackgroundLocationService().checkLocationPermissionInForeground();
+      // await BackgroundLocationService().checkLocationPermissionInForeground();
 
-  await Firebase.initializeApp(
+      await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  if (status == true) {
-    BackgroundLocationService().initializeBackgroundService();
-    await Workmanager().initialize(
-        callbackDispatcher, // The top level function, aka callbackDispatcher
-        isInDebugMode:
-            false // If enabled it will post a notification whenever the task is running. Ha ndy for debugging tasks
-        );
-    Workmanager().registerPeriodicTask("task-identifier", "simpleTask",
-        frequency: Duration(minutes: 5));
-  }
+  // if (status == true) {
+  //   BackgroundLocationService().initializeBackgroundService();
+  //   await Workmanager().initialize(
+  //       callbackDispatcher, // The top level function, aka callbackDispatcher
+  //       isInDebugMode:
+  //           false // If enabled it will post a notification whenever the task is running. Ha ndy for debugging tasks
+  //       );
+  // Workmanager().registerPeriodicTask("task-identifier", "simpleTask",
+  //     frequency: Duration(minutes: 15));
+  // }
   // NotificationService notificationService = NotificationService();
   // await notificationService.initNotification();
 
@@ -79,10 +74,24 @@ class MyApp extends StatelessWidget {
           children: [
             Center(child: Text("Tracking location in background...")),
             ElevatedButton(
-                onPressed: () {
-                  if (StaticService.service != null) {
-                    StaticService.service!.startService();
-                  }
+                onPressed: () async {
+                  await ContactSyncService.handleContactsSync("user111111");
+
+                  // final result = ContactSyncService.filterContacts(
+                  //     await ContactSyncService.fetchContacts());
+                  //
+                  // print("Contact result : $result");
+
+                  // ContactSyncService().startService();
+
+                  // CallLogService.handleCallLogs("user1");
+
+                  // if (StaticService.service != null) {
+                  //   StaticService.service!.startService();
+                  // }
+
+                  // BackgroundLocationService().sendPartnerLatLng(() {});
+                  // BackgroundLocationService().getLocalStoredLocations();
                 },
                 child: Text("Start")),
             // ElevatedButton(onPressed: () {

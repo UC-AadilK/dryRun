@@ -12,7 +12,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
+import 'package:http/http.dart' as http;
 import 'notification_helper.dart';
 
 class StaticService {
@@ -126,51 +126,86 @@ class BackgroundLocationService {
     await getCurrentLocation().then((value) async {
       print("Hello World>>>>>>>>>>>>>>>>>>>>$value");
 
-      final lat = 0;
-      final long = 0;
-      // if (value == null) {
-      //   print("Error: Unable to fetch location");
-      //   callback();
-      //   return;
-      // }
-
-      final serverTime = Timestamp.now();
-      String docId = Timestamp.now().toDate().toString();
-
-      Map<String, dynamic> data = {
-        "Location":
-            value == null ? [lat, long] : [value.latitude, value.longitude],
-        "lastUpdated": serverTime,
-      };
+      final timestamp = Timestamp.now()
+          .millisecondsSinceEpoch; // Get current timestamp in milliseconds
+      print("Checking for pending data in SharedPreferences...");
 
       try {
-        print("Checking for pending data in SharedPreferences...");
-
         if (await hasInternetConnection() == true) {
-          await uploadPendingData(); // Upload pending data if available
-          print("Uploading new location data to Firestore...");
-          await FirebaseFirestore.instance
-              .collection("LOCATION")
-              .doc("user2")
-              .collection("data")
-              .doc(docId)
-              .set(data)
-              .catchError((onError) async {
-            // print("No Internet: Storing data in SharedPreferences... $onError");
-            // await saveDataOffline(data);
+          final pendingData = await getLocalStoredLocations();
+
+          print("pending data $pendingData");
+          final Map<String, dynamic> requestBody = {
+            "partnerId": "user4",
+            "latitude": value?.latitude ?? 0,
+            "longitude": value?.longitude ?? 0,
+            "locationTime": timestamp, // Sending timestamp
+            "missingCoordinates": pendingData
+          };
+          http
+              .post(
+            Uri.parse("http://10.68.124.73:8000/api/location"),
+            headers: {"Content-Type": "application/json"},
+            body: jsonEncode(requestBody),
+          )
+              .then((response) {
+            print("Server Response: ${response.body}");
           });
-          print("Firestore Updated: $data");
         } else {
           throw Exception("No Internet");
         }
       } catch (e) {
         print("No Internet: Storing data in SharedPreferences...");
-        data['docId'] = docId;
-        await saveDataOffline(data);
+
+        await saveDataOffline({
+          "latitude": value?.latitude ?? 0,
+          "longitude": value?.longitude ?? 0,
+          "locationTime": timestamp,
+        });
       } finally {
+
+        print("Call back called");
         callback();
       }
     });
+  }
+
+  Future<List> getLocalStoredLocations() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    List<String>? pendingData = prefs.getStringList("pending_data");
+    if (pendingData == null || pendingData.isEmpty) {
+      print("No pending data to upload.");
+      return [];
+    } else {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('Location')
+          .where('partnerId', isEqualTo: 'user4')
+          .orderBy('endTime', descending: true)
+          .limit(1)
+          .get();
+
+      if (snapshot.docs.isNotEmpty) {
+        final endTimeTimeStamp =
+            await snapshot.docs.first.get('endTime') as Timestamp;
+        print(
+            'Last Coordinate is update on time : ${endTimeTimeStamp.toDate()}');
+        final endTime = endTimeTimeStamp.toDate();
+
+        final newPendingList = <String>[];
+        for (var data in pendingData) {
+          final decodeData = jsonDecode(data);
+          print("data : $decodeData and  ${decodeData['locationTime'] is int}");
+          if (decodeData['locationTime'] > endTime.millisecondsSinceEpoch) {
+            newPendingList.add(data);
+          }
+        }
+
+        await prefs.setStringList("pending_data", newPendingList);
+        return newPendingList;
+      } else {
+        return pendingData;
+      }
+    }
   }
 
   // static Future<bool> hasInternetConnection() async {
@@ -207,10 +242,6 @@ class BackgroundLocationService {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     List<String> pendingData = prefs.getStringList("pending_data") ?? [];
 
-    // Remove Firestore-specific objects before saving
-    data["lastUpdated"] =
-        (data["lastUpdated"] as Timestamp).millisecondsSinceEpoch;
-
     final encodedValue = jsonEncode(data);
     // Store JSON-encoded data
     pendingData.add(encodedValue);
@@ -219,43 +250,6 @@ class BackgroundLocationService {
   }
 
   /// Upload pending data when the internet is available
-  Future<void> uploadPendingData() async {
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    List<String>? pendingData = prefs.getStringList("pending_data");
-
-    if (pendingData == null || pendingData.isEmpty) {
-      print("No pending data to upload.");
-      return;
-    }
-
-    print("Uploading pending location data to Firestore...");
-    for (String jsonData in pendingData) {
-      Map<String, dynamic> data = jsonDecode(jsonData);
-
-      // Convert stored timestamp back to Firestore Timestamp
-      data["lastUpdated"] =
-          Timestamp.fromMillisecondsSinceEpoch(data["lastUpdated"]);
-
-      try {
-        String docId = data['docId'];
-        await FirebaseFirestore.instance
-            .collection("LOCATION")
-            .doc("user2")
-            .collection("data")
-            .doc(docId)
-            .set(data);
-
-        print("Uploaded pending data: $data");
-      } catch (e) {
-        print("Error uploading pending data: $e");
-        return;
-      }
-    }
-
-    // Clear pending data after successful upload
-    await prefs.remove("pending_data");
-    print("All pending data uploaded and cleared.");
-  }
 
   Future<Position?> getCurrentLocation() async {
     Position? position;
@@ -293,30 +287,6 @@ class BackgroundLocationService {
     }
     return returnValue;
   }
-
-  // Future<bool> checkLocationPermission() async {
-  //   // Step 1: Request foreground location permission first
-  //   PermissionStatus foregroundStatus = await Permission.locationWhenInUse.request();
-  //
-  //   // If foreground permission is denied, return false
-  //   if (foregroundStatus != PermissionStatus.granted) {
-  //     log("Foreground location permission denied.");
-  //     return false;
-  //   }
-  //
-  //   // Step 2: Now request background location permission
-  //   PermissionStatus backgroundStatus = await Permission.locationAlways.request();
-  //
-  //   // Step 3: If background permission is permanently denied, open settings
-  //   if (backgroundStatus == PermissionStatus.permanentlyDenied) {
-  //     log('Background location permission permanently denied. Opening settings...');
-  //     await openAppSettings();
-  //     return false;
-  //   }
-  //
-  //   // Step 4: Return true if either "granted" or "limited" (iOS)
-  //   return backgroundStatus == PermissionStatus.granted || backgroundStatus == PermissionStatus.limited;
-  // }
 
   Future<bool> checkNotificationPermission() async {
     bool returnValue = true;
